@@ -107,7 +107,7 @@ watch(
       meta: newVal.meta,
       query: newVal.query
     })
-    activePath.value = window.location.pathname + window.location.search
+    activePath.value = router.currentRoute.value.fullPath
   },
   { deep: true }
 )
@@ -122,7 +122,7 @@ onMounted(() => {
     meta: router.currentRoute.value.meta,
     query: router.currentRoute.value.query
   })
-  activePath.value = window.location.pathname + window.location.search
+  activePath.value = router.currentRoute.value.fullPath
   rightClickItem.value = store.state.tagsView.visitedViews.find((v) => v.path === activePath.value)
 })
 const handleVisitedClick = (item) => {
@@ -193,7 +193,7 @@ const closeOtherPages = () => {
   // Implement close other pages logic
   store.dispatch('tagsView/delOtherViews', rightClickItem.value)
   const _visitedViews = store.state.tagsView.visitedViews
-  const currentPath = window.location.pathname + window.location.search
+  const currentPath = router.currentRoute.value.fullPath
   if (_visitedViews.findIndex((p) => p.path == currentPath) == -1) {
     router.push(_visitedViews[_visitedViews.length - 1].path)
   }
@@ -207,7 +207,7 @@ const closeAllPages = () => {
   if (fixedViews.length == 0) {
     router.push('/')
   } else {
-    const currentPath = window.location.pathname + window.location.search
+    const currentPath = router.currentRoute.value.fullPath
     if (fixedViews.findIndex((p) => p.path == currentPath) == -1) {
       router.push(fixedViews[0].path)
     }
@@ -521,4 +521,3 @@ $active-color: #0966f2;
   }
 }
 </style>
-
