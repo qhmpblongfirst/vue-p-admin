@@ -8,6 +8,9 @@
 
 相比vue element admin，增加了vuex-persistedstate来持久化打开的页面，当打开多个页面时，按F5刷新，打开的标签页不会像element element admin一样只保留当前页
 
+没有什么主题、配色之类，想到哪写到哪，**不支持**多端自适应
+
+
 **真·框架**
 
 **不了解这开源协议那开源协议，纯纯为了自己方便，后端同学看得上就拿去用**
@@ -20,4 +23,8 @@
 - 路由在/src/router，模块化处理，./modules下的js文件没有自动引入index.js
 - 状态管理在/src/store，模块化处理，模块自动引入，需要修改直接在./modules目录下照猫画虎即可
 - 项目中所使用到的icon均来自iconify的开源
+- /utils/http.js内包含POST、GET、JSONP的方法，请求前会判断JWT是否存在，自动添加
+- 开发环境请求baseURL在/src/setting.js内设置
+- 生产环境请求baseURL在/public/config.js内设置
 
+预览地址：[https://vue-p-admin.dulili.net](https://vue-p-admin.dulili.net)
