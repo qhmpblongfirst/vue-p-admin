@@ -52,8 +52,9 @@ function createAxiosInstance() {
   })
   service.interceptors.request.use(
     (config) => {
-      if (store.getters.token) {
-        config.headers['Authorization'] = `Bearer ${getToken()}`
+      const token = store.getters['user/token']
+      if (token) {
+        config.headers['Authorization'] = `Bearer ${token}`
       }
       return config
     },
