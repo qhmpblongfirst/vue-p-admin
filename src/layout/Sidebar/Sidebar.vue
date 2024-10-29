@@ -1,38 +1,18 @@
 <template>
   <div class="sidebar-container" :class="{ expanded: !onlyOneChild }">
     <div class="parent-container">
-      <div
-        class="parent-menu"
-        v-for="(parentMenu, index) in filteredRoutes"
-        :key="index"
-        @click="handleParentClick(parentMenu)"
-        :class="{ active: currentParent.path === parentMenu.path }"
-      >
+      <div class="parent-menu" v-for="(parentMenu, index) in filteredRoutes" :key="index" @click="handleParentClick(parentMenu)" :class="{ active: currentParent.path === parentMenu.path }">
         <Icon :icon="`mdi:${parentMenu.meta.icon}`" class="menu-icon" />
         <span class="menu-title">
-          {{
-            parentMenu.children && parentMenu.children.length == 1
-              ? parentMenu.children[0].meta.title
-              : parentMenu.meta.title
-          }}
+          {{ parentMenu.children && parentMenu.children.length == 1 ? parentMenu.children[0].meta.title : parentMenu.meta.title }}
         </span>
       </div>
     </div>
     <div class="children-panel-container" v-if="!onlyOneChild">
       <div class="children-title">{{ settings.title }}</div>
-      <div
-        class="children-menu"
-        v-for="(childrenMenu, index) in currentParent.children"
-        :key="index"
-        @click="handleChildrenClick(childrenMenu)"
-        :class="{
-          active:
-            router.currentRoute.value.path ===
-            getFullPath(currentParent, childrenMenu),
-        }"
-      >
-        <Icon :icon="`mdi:${childrenMenu.meta.icon}`" class="menu-icon" />
-        <span class="menu-title">{{ childrenMenu.meta.title }}</span>
+      <div class="child-menu" v-for="(childMenu, index) in filteredChildren" :key="index" @click="handleChildrenClick(childMenu)" :class="{ active: router.currentRoute.value.path === getFullPath(currentParent, childMenu) }">
+        <Icon :icon="`mdi:${childMenu.meta.icon}`" class="menu-icon" />
+        <span class="menu-title">{{ childMenu.meta.title }}</span>
       </div>
     </div>
   </div>
@@ -48,26 +28,12 @@ const store = useStore()
 const showChildrenPanel = defineModel('visible')
 
 const filteredRoutes = constantRoutes.filter((route) => !route.hidden)
-const fixedRoutes = computed(() => {
-  let arr = []
-  filteredRoutes.forEach((route) => {
-    if (route.meta.fixed) {
-      arr.push(route)
-      store.dispatch('tagsView/addVisitedView', route)
-    }
-    if (route.children && route.children.length > 0) {
-      route.children.forEach((child) => {
-        if (child.meta.fixed) {
-          arr.push(child)
-          store.dispatch('tagsView/addVisitedView', child)
-        }
-      })
-    }
-  })
-  return arr
-})
+
 
 const currentParent = ref(filteredRoutes[0])
+const filteredChildren = computed(() => {
+  return currentParent.value.children?.filter(menu => !menu.hidden) || []
+})
 watch(
   currentParent,
   (newVal) => {
@@ -78,9 +44,7 @@ watch(
 watch(
   router.currentRoute,
   (newVal) => {
-    currentParent.value = filteredRoutes.find(
-      (r) => r.children.findIndex((p) => getFullPath(r, p) == newVal.path) > -1
-    )
+    currentParent.value = filteredRoutes.find((r) => r.children.findIndex((p) => getFullPath(r, p) == newVal.path) > -1)
     generateNav()
   },
   { deep: true }
@@ -90,35 +54,29 @@ const generateNav = () => {
   if (currentParent.value.children && currentParent.value.children.length > 1) {
     arr.push({
       icon: currentParent.value.meta.icon,
-      title: currentParent.value.meta.title,
+      title: currentParent.value.meta.title
     })
     arr.push({
       icon: router.currentRoute.value.meta.icon,
-      title: router.currentRoute.value.meta.title,
+      title: router.currentRoute.value.meta.title
     })
   } else {
     arr.push({
       icon: currentParent.value.meta.icon,
-      title: router.currentRoute.value.meta.title,
+      title: router.currentRoute.value.meta.title
     })
   }
   store.dispatch('tagsView/setNav', arr)
 }
 const onlyOneChild = computed(() => {
-  if (currentParent.value.children && currentParent.value.children.length > 1)
-    return false
+  if (currentParent.value.children && currentParent.value.children.length > 1) return false
   return true
 })
 const getFullPath = (parentMenu, childrenMenu) => {
   return `/${parentMenu.path}/${childrenMenu.path}`.replace(/(\/)+/g, '/')
 }
 onMounted(() => {
-  currentParent.value = filteredRoutes.find(
-    (r) =>
-      r.children.findIndex(
-        (p) => getFullPath(r, p) == router.currentRoute.value.path
-      ) > -1
-  )
+  currentParent.value = filteredRoutes.find((r) => r.children.findIndex((p) => getFullPath(r, p) == router.currentRoute.value.path) > -1)
   generateNav()
   filteredRoutes.forEach((route) => {
     if (route.meta.fixed && !route.meta.hidden) {
@@ -126,7 +84,7 @@ onMounted(() => {
         meta: route.meta,
         title: route.meta.title,
         path: `/${route.path}`.replace(/(\/)+/g, '/'),
-        query: route.query,
+        query: route.query
       })
     }
     if (route.children && route.children.length > 0) {
@@ -136,7 +94,7 @@ onMounted(() => {
             meta: child.meta,
             title: child.meta.title,
             path: getFullPath(route, child),
-            query: child.query,
+            query: child.query
           })
         }
       })
@@ -155,8 +113,7 @@ const handleChildrenClick = (childrenMenu) => {
 <style lang="scss" scoped>
 $parent-menu-width: 60px;
 $parent-menu-margin: 7.5px;
-$parent-menu-container-width: $parent-menu-width + $parent-menu-margin +
-  $parent-menu-margin;
+$parent-menu-container-width: $parent-menu-width + $parent-menu-margin + $parent-menu-margin;
 $children-panel-width: 200px;
 $parent-menu-active-color: #0966f2;
 $interval: 1.3s;
@@ -236,7 +193,7 @@ $soft-border: 1px solid #e0e0e0;
       justify-content: center;
       margin-bottom: 10px;
     }
-    .children-menu {
+    .child-menu {
       display: flex;
       align-items: center;
       padding: 0 20px;

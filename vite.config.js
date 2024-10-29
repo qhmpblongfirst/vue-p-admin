@@ -11,29 +11,29 @@ export default defineConfig({
   css: {
     preprocessorOptions: {
       scss: {
-        api: 'modern-compiler', // 使用现代的 SCSS 编译器
-      },
-    },
+        api: 'modern-compiler' // 使用现代的 SCSS 编译器
+      }
+    }
   },
   plugins: [
-    vue(),
+    vue({ defineModel: true }),
     AutoImport({
       imports: ['vue', 'vue-router', 'vuex'],
-      resolvers: [ElementPlusResolver()],
+      resolvers: [ElementPlusResolver()]
     }),
     Components({
-      resolvers: [ElementPlusResolver(), IconifyIconResolver()],
+      resolvers: [ElementPlusResolver(), IconifyIconResolver()]
     }),
     Icons({
       autoInstall: true,
       scale: 1,
       defaultClass: 'inline-block',
-      compiler: 'vue3',
-    }),
+      compiler: 'vue3'
+    })
   ],
   resolve: {
     alias: {
-      '@': '/src', // 添加别名配置
-    },
-  },
+      '@': '/src' // 添加别名配置
+    }
+  }
 })

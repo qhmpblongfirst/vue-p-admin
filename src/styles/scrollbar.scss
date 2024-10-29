@@ -1,0 +1,103 @@
+/* 全局滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;  /* 垂直滚动条宽度 */
+  height: 8px; /* 水平滚动条高度 */
+}
+
+/* 滚动条轨道 */
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+/* 滚动条滑块 */
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+  
+  &:hover {
+    background: #a8a8a8;
+  }
+  
+  &:active {
+    background: #999;
+  }
+}
+
+/* 针对 Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
+/* 如果只想美化特定容器的滚动条，可以这样写 */
+.custom-scroll {
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 3px;
+    
+    &:hover {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    
+    &:active {
+      background: rgba(0, 0, 0, 0.25);
+    }
+  }
+}
+
+/* Element Plus 表格滚动条美化 */
+.el-table {
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #dcdfe6;
+    border-radius: 3px;
+    
+    &:hover {
+      background: #c0c4cc;
+    }
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f5f7fa;
+  }
+}
+
+/* 暗色主题滚动条 */
+.dark-theme {
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #2d2d2d;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #555;
+    
+    &:hover {
+      background: #666;
+    }
+    
+    &:active {
+      background: #777;
+    }
+  }
+}
+

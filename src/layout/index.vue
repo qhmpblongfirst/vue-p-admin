@@ -1,11 +1,16 @@
 <template>
   <el-container class="app-wrapper">
     <el-aside width="" class="sidebar-container">
-      <sidebar></sidebar>
+      <sidebar ref="sidebarRef"></sidebar>
     </el-aside>
     <el-container class="main-container">
       <el-header height="60px" class="main-header">
         <div class="nav-container">
+          <!-- 添加折叠图标 -->
+          <div class="collapse-icon" @click="toggleSidePanel">
+            <Icon :icon="isPanelCollapse ? 'mdi:chevron-right' : 'mdi:chevron-left'" />
+          </div>
+          
           <div class="nav-item" v-for="(item, index) in nav" :key="index">
             <Icon :icon="`mdi:${item.icon}`" />
             <span>{{ item.title }}</span>
@@ -25,7 +30,10 @@
           <div class="visited-container" ref="visitedContainerRef" :class="{ overflow: overflowWidth > 0 }">
             <div class="visited-item" v-for="(item, index) in visitedViews" :key="index" :class="{ active: item.path === activePath }" @click="handleVisitedClick(item)" @contextmenu.prevent="showContextMenu($event, item)">
               <Icon :icon="`mdi:${item.meta.icon}`" class="visited-icon" />
-              <span class="visited-title">{{ item.meta.title }}</span>
+              <el-tooltip :content="item.meta.title" placement="top" effect="dark">
+                <span class="visited-title">{{ item.meta.title.split('-')[1]??item.meta.title.split('-')[0] }}</span>
+              </el-tooltip>
+              
               <Icon icon="mdi:close" v-if="!item.meta.fixed" class="visited-close" @click.native.stop="handleVisitedClose(item)" />
             </div>
           </div>
@@ -40,9 +48,6 @@
           <component :is="Component" v-if="!cached" :key="refreshKey" />
         </router-view>
       </el-main>
-      <el-footer height="40px" class="main-footer">
-        <!-- 这里可以添加页脚内容 -->
-      </el-footer>
     </el-container>
   </el-container>
 
@@ -68,13 +73,13 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import sidebar from './Sidebar/Sidebar.vue'
 import { Icon } from '@iconify/vue'
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
+import { ref } from 'vue'
 
 const store = useStore()
 const router = useRouter()
@@ -98,6 +103,8 @@ const refreshKey = ref(0)
 const activePath = ref('')
 const visitedContainerRef = ref(null)
 const overflowWidth = ref(0)
+const sidebarRef = ref(null)
+const isPanelCollapse = ref(false)
 
 watch(
   router.currentRoute,
@@ -111,12 +118,10 @@ watch(
   },
   { deep: true }
 )
+
+// 删除分散的 onMounted 钩子，合并成一个
 onMounted(() => {
-  const token = store.getters['user/token']
-  if (!token) {
-    store.dispatch('user/logout')
-    router.replace('/login')
-  }
+  // 检查token和添加访问视图
   store.dispatch('tagsView/addVisitedView', {
     path: router.currentRoute.value.path,
     meta: router.currentRoute.value.meta,
@@ -124,11 +129,22 @@ onMounted(() => {
   })
   activePath.value = router.currentRoute.value.fullPath
   rightClickItem.value = store.state.tagsView.visitedViews.find((v) => v.path === activePath.value)
+
+  // 添加关闭上下文菜单的事件监听
+  document.addEventListener('click', closeContextMenu)
+
+  // 设置 ResizeObserver
+  if (visitedContainerRef.value) {
+    resizeObserver = new ResizeObserver(calculateOverflowWidth)
+    resizeObserver.observe(visitedContainerRef.value)
+  }
 })
+
 const handleVisitedClick = (item) => {
   router.push(item.path)
 }
 const handleVisitedClose = (item) => {
+  console.log(item.path)
   const index = visitedViews.value.findIndex((v) => v.path === item.path)
   if (index > -1) {
     if (index > 0) {
@@ -136,7 +152,7 @@ const handleVisitedClose = (item) => {
     } else {
       router.push('/')
     }
-    store.dispatch('tagsView/delVisitedView', item)
+    store.dispatch('tagsView/delVisitedView', item.path)
   }
 }
 const handleRefresh = () => {
@@ -158,8 +174,8 @@ const toggleFullscreen = () => {
   }
 }
 const handleLogout = () => {
-  window.location.replace('/login')
   store.dispatch('user/logout')
+  window.location.replace('/')
 }
 const rightClickItemFixed = ref(false)
 const rightClickItem = ref(store.state.tagsView.visitedViews[0])
@@ -179,6 +195,13 @@ const closeContextMenu = () => {
 
 const refreshPage = () => {
   // Implement refresh logic
+  if (currentContextMenuItem.value) {
+    NProgress.start()
+    refreshKey.value += 1
+    nextTick(() => {
+      NProgress.done()
+    })
+  }
   closeContextMenu()
 }
 
@@ -215,15 +238,6 @@ const closeAllPages = () => {
 
   closeContextMenu()
 }
-
-// Add click event listener to close context menu when clicking outside
-onMounted(() => {
-  document.addEventListener('click', closeContextMenu)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', closeContextMenu)
-})
 
 // 监听 visitedViews 的长度变化
 watch(
@@ -302,6 +316,12 @@ const scrollToRight = () => {
     visitedContainerRef.value.scrollLeft = visitedContainerRef.value.scrollWidth - visitedContainerRef.value.clientWidth
   }
 }
+
+const toggleSidePanel = () => {
+  isPanelCollapse.value = !isPanelCollapse.value
+  // 调用sidebar组件的方法
+  sidebarRef.value?.togglePanel(isPanelCollapse.value)
+}
 </script>
 
 <style lang="scss" scoped>
@@ -365,6 +385,31 @@ $active-color: #0966f2;
         color: $active-color;
       }
     }
+    .collapse-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      margin-right: 16px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.3s;
+      
+      &:hover {
+        background-color: #f5f7fa;
+        
+        .iconify {
+          color: var(--el-color-primary);
+        }
+      }
+      
+      .iconify {
+        font-size: 20px;
+        color: #606266;
+        transition: all 0.3s;
+      }
+    }
   }
   .visited-scroll-container {
     display: flex;
@@ -399,6 +444,7 @@ $active-color: #0966f2;
       .visited-item {
         font-size: 13px;
         font-weight: 500;
+        
         border: 1px solid $border-color;
         padding: 0 12px;
         border-radius: 4px;
@@ -415,8 +461,6 @@ $active-color: #0966f2;
         &:hover {
           color: $active-color;
           background-color: #f0f7ff;
-          transform: translateY(-1px);
-          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
         }
 
         &.active {
@@ -425,6 +469,12 @@ $active-color: #0966f2;
           border-color: $active-color;
         }
 
+        .visited-title {
+          overflow: hidden;
+          white-space: nowrap;
+          max-width: 90px;
+          text-align: center;
+        }
         .visited-icon {
           font-size: 16px; // Slightly smaller icon
           margin-right: 6px;
@@ -521,3 +571,4 @@ $active-color: #0966f2;
   }
 }
 </style>
+
