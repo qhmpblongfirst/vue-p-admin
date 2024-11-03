@@ -24,7 +24,6 @@
 - 状态管理在/src/store，模块化处理，模块自动引入，需要修改直接在./modules目录下照猫画虎即可
 - 项目中所使用到的icon均来自iconify的开源
 - /utils/http.js内包含POST、GET、JSONP的方法，请求前会判断JWT是否存在，自动添加
-- 开发环境请求baseURL在/src/setting.js内设置
-- 生产环境请求baseURL在/public/config.js内设置
+- 开发环境和生产环境请求baseURL在/src/setting.js内设置
 
 预览地址：[https://vue-p-admin.dulili.net](https://vue-p-admin.dulili.net)
