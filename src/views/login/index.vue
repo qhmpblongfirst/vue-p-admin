@@ -144,6 +144,7 @@ onMounted(() => {
 <style lang="scss" scoped>
 @use "sass:list";
 @use "sass:math";
+@use "sass:map";
 
 .login-container {
   min-height: 100vh;
@@ -208,23 +209,24 @@ onMounted(() => {
         'middle': list.nth((1.5px, 2px, 2.5px), ($i % 3) + 1),
         'far': list.nth((1px, 1.5px, 2px), ($i % 3) + 1)
       );
-      $size: map-get($size-map, $layer);
+      $size: map.get($size-map, $layer);
       
       $opacity-map: (
         'near': list.nth((0.9, 0.8, 0.85), ($i % 3) + 1),
         'middle': list.nth((0.7, 0.6, 0.65), ($i % 3) + 1),
         'far': list.nth((0.5, 0.4, 0.45), ($i % 3) + 1)
       );
-      $base-opacity: map-get($opacity-map, $layer);
+      $base-opacity: map.get($opacity-map, $layer);
       
       $glow-map: (
         'near': '0 0 4px rgba(255, 255, 255, 0.8), 0 0 8px rgba(255, 255, 255, 0.5)',
         'middle': '0 0 3px rgba(255, 255, 255, 0.6), 0 0 6px rgba(255, 255, 255, 0.3)',
         'far': '0 0 2px rgba(255, 255, 255, 0.4), 0 0 4px rgba(255, 255, 255, 0.2)'
       );
+      $glow: map.get($glow-map, $layer);
       
-      $section-x: math.floor($i / 20) * 20;
-      $section-y: ($i % 20) * 10;
+      $section-x: math.floor(math.div($i, 20)) * 20;
+      $section-y: math.div($i % 20, 1) * 10;
       
       $random-offset-x: math.random() * 15 - 7.5;
       $random-offset-y: math.random() * 15 - 7.5;
@@ -241,7 +243,7 @@ onMounted(() => {
       height: $size;
       background: #fff;
       opacity: $base-opacity;
-      box-shadow: #{map-get($glow-map, $layer)};
+      box-shadow: #{$glow};
       animation: twinkle-#{$layer}-#{$i} $duration $delay infinite ease-in-out;
       
       @keyframes twinkle-#{$layer}-#{$i} {
