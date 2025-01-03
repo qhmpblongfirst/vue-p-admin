@@ -1,4 +1,4 @@
-import { postAsync } from '@/utils/http'
+import { postAsync } from '@/utils/request'
 
 /**
  * 登录异步方法
