@@ -14,7 +14,7 @@ const mutations = {
 const actions = {
   async loginAsync({ commit }, data) {
     const response = await userApi.loginAsync(data)
-    if (response.return_code === '0') {
+    if (response.return_code == '0') {
       commit('SET_TOKEN', response.data.token)
     }
     return response

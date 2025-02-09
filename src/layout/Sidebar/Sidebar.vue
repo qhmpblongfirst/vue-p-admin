@@ -1,121 +1,136 @@
 <template>
   <div class="sidebar-container" :class="{ expanded: !onlyOneChild }">
     <div class="parent-container">
-      <div class="parent-menu" v-for="(parentMenu, index) in filteredRoutes" :key="index" @click="handleParentClick(parentMenu)" :class="{ active: currentParent.path === parentMenu.path }">
+      <div class="parent-menu" v-for="(parentMenu, index) in filteredRoutes" :key="index" @click="handleParentMenuClick(parentMenu)" :class="{ active: currentParent.path === parentMenu.path }">
         <Icon :icon="`mdi:${parentMenu.meta.icon}`" class="menu-icon" />
         <span class="menu-title">
           {{ parentMenu.children && parentMenu.children.length == 1 ? parentMenu.children[0].meta.title : parentMenu.meta.title }}
         </span>
       </div>
     </div>
-    <div class="children-panel-container" v-if="!onlyOneChild">
+    <div class="children-panel-container" v-if="!onlyOneChild && panelShow">
       <div class="children-title">{{ settings.title }}</div>
-      <div class="child-menu" v-for="(childMenu, index) in filteredChildren" :key="index" @click="handleChildrenClick(childMenu)" :class="{ active: router.currentRoute.value.path === getFullPath(currentParent, childMenu) }">
+      <router-link class="child-menu" v-for="(childMenu, index) in filteredChildren" :key="index" :to="childMenu.path" :class="{ active: router.currentRoute.value.name === childMenu.name }">
         <Icon :icon="`mdi:${childMenu.meta.icon}`" class="menu-icon" />
         <span class="menu-title">{{ childMenu.meta.title }}</span>
-      </div>
+      </router-link>
     </div>
   </div>
 </template>
 
 <script setup>
 import { Icon } from '@iconify/vue'
-import { constantRoutes } from '@/router/index.js'
 import * as settings from '@/settings'
-
+const panelShow = defineModel('panelShow')
 const router = useRouter()
+const route = useRoute()
 const store = useStore()
-const showChildrenPanel = defineModel('visible')
+const permissionRoutes = computed(() => store.state.permission.routes)
+const filteredRoutes = ref([])
+const isPanelCollapse = ref(false)
 
-const filteredRoutes = constantRoutes.filter((route) => !route.hidden)
-
-
-const currentParent = ref(filteredRoutes[0])
+const currentParent = ref(null)
 const filteredChildren = computed(() => {
-  return currentParent.value.children?.filter(menu => !menu.hidden) || []
+  return currentParent.value.children?.filter((menu) => !menu.hidden) || []
 })
-watch(
-  currentParent,
-  (newVal) => {
-    showChildrenPanel.value = newVal.children && newVal.children.length > 1
-  },
-  { deep: true, immediate: true }
-)
-watch(
-  router.currentRoute,
-  (newVal) => {
-    currentParent.value = filteredRoutes.find((r) => r.children.findIndex((p) => getFullPath(r, p) == newVal.path) > -1)
-    generateNav()
-  },
-  { deep: true }
-)
-const generateNav = () => {
-  let arr = []
-  if (currentParent.value.children && currentParent.value.children.length > 1) {
-    arr.push({
-      icon: currentParent.value.meta.icon,
-      title: currentParent.value.meta.title
-    })
-    arr.push({
-      icon: router.currentRoute.value.meta.icon,
-      title: router.currentRoute.value.meta.title
-    })
-  } else {
-    arr.push({
-      icon: currentParent.value.meta.icon,
-      title: router.currentRoute.value.meta.title
-    })
+const onlyOneChild = ref(false)
+const handleParentMenuClick = (parentMenu) => {
+  panelShow.value = true
+  // 如果只有一个子菜单，直接跳转到子菜单
+  if (parentMenu.children && parentMenu.children.length === 1) {
+    const child = parentMenu.children[0]
+    router.push({ path: `/${parentMenu.path}/${child.path}`.replace(/\/+/g, '/') })
+    return
   }
-  store.dispatch('tagsView/setNav', arr)
+
+  // 如果父菜单有默认路由，跳转到第一个可见的子菜单
+  if (parentMenu.children && parentMenu.children.length > 0) {
+    const firstVisibleChild = parentMenu.children.find((child) => !child.hidden)
+    if (firstVisibleChild) {
+      router.push({ path: `/${parentMenu.path}/${firstVisibleChild.path}`.replace(/\/+/g, '/') })
+    }
+  } else {
+    // 如果没有子菜单，直接跳转到父菜单路径
+    router.push({ path: `/${parentMenu.path}`.replace(/\/+/g, '/') })
+  }
 }
-const onlyOneChild = computed(() => {
-  if (currentParent.value.children && currentParent.value.children.length > 1) return false
-  return true
-})
-const getFullPath = (parentMenu, childrenMenu) => {
-  return `/${parentMenu.path}/${childrenMenu.path}`.replace(/(\/)+/g, '/')
-}
-onMounted(() => {
-  currentParent.value = filteredRoutes.find((r) => r.children.findIndex((p) => getFullPath(r, p) == router.currentRoute.value.path) > -1)
-  generateNav()
-  filteredRoutes.forEach((route) => {
-    if (route.meta.fixed && !route.meta.hidden) {
+watch(
+  () => store.state.permission.routes,
+  (newVal) => {
+    filteredRoutes.value = newVal.filter((route) => !route.hidden)
+    watchRoute(router.currentRoute.value)
+  },
+  {
+    deep: true
+  }
+)
+
+const watchRoute = (newVal) => {
+  filteredRoutes.value = permissionRoutes.value.filter((route) => !route.hidden)
+  filteredRoutes.value.forEach((r) => {
+    const nav = []
+    if (r.children.findIndex((p) => p.name == newVal.name) > -1) {
+      currentParent.value = r
+      nav.push({ icon: r.meta.icon, title: r.meta.title })
+      const visibleChildren = r.children.filter((child) => !child.hidden)
+      onlyOneChild.value = !r.children || r.children.length === 0 || visibleChildren.length === 1
+    }
+    if (r.meta.fixed && !r.meta.hidden) {
       store.dispatch('tagsView/addVisitedView', {
-        meta: route.meta,
-        title: route.meta.title,
-        path: `/${route.path}`.replace(/(\/)+/g, '/'),
-        query: route.query
+        meta: r.meta,
+        title: r.meta.title,
+        path: `/${r.path}/${c.path}`.replace(/(\/)+/g, '/'),
+        query: r.query
       })
     }
-    if (route.children && route.children.length > 0) {
-      route.children.forEach((child) => {
-        if (child.meta.fixed && !child.meta.hidden) {
+    if (r.children) {
+      r.children.forEach((c) => {
+        if (c.name == newVal.name) {
+          nav.push({ icon: c.meta.icon, title: c.meta.title })
+        }
+        if (c.meta.fixed && !c.meta.hidden) {
           store.dispatch('tagsView/addVisitedView', {
-            meta: child.meta,
-            title: child.meta.title,
-            path: getFullPath(route, child),
-            query: child.query
+            meta: c.meta,
+            title: c.meta.title,
+            path: `/${c.path}`.replace(/(\/)+/g, '/'),
+            query: c.query
           })
         }
       })
     }
+    if (nav.length > 0) {
+      store.dispatch('tagsView/setNav', nav)
+    }
   })
+}
+
+watch(
+  () => route,
+  (newVal) => {
+    watchRoute(newVal)
+  },
+  { immediate: true, deep: true }
+)
+
+const togglePanel = (collapsed) => {
+  // 根据传入的 collapsed 状态更新侧边栏
+  isPanelCollapse.value = collapsed
+  panelShow.value = !collapsed  // 同时更新 panelShow 的状态
+}
+
+// 将方法暴露给父组件
+defineExpose({
+  togglePanel
 })
-const handleParentClick = (parentMenu) => {
-  currentParent.value = parentMenu
-  router.push(parentMenu.path)
-}
-const handleChildrenClick = (childrenMenu) => {
-  router.push(childrenMenu.path)
-}
 </script>
 
 <style lang="scss" scoped>
+@use '@/styles/variables.scss' as *;
 $parent-menu-width: 60px;
 $parent-menu-margin: 7.5px;
 $parent-menu-container-width: $parent-menu-width + $parent-menu-margin + $parent-menu-margin;
 $children-panel-width: 200px;
-$parent-menu-active-color: #0966f2;
+$parent-menu-active-color: $primary-color;
 $interval: 1.3s;
 $soft-border: 1px solid #e0e0e0;
 @keyframes expandSidebar {
@@ -144,9 +159,11 @@ $soft-border: 1px solid #e0e0e0;
   .parent-container {
     width: $parent-menu-container-width;
     display: flex;
-    background-color: #151d25;
+    background-color: #fff;
     flex-direction: column;
     .parent-menu {
+      text-decoration: none;
+      color: $primary-color;
       display: flex;
       align-items: center;
       justify-content: space-around;
@@ -157,11 +174,12 @@ $soft-border: 1px solid #e0e0e0;
       margin: $parent-menu-margin;
       border-radius: 4px;
       &.active {
-        background-color: $parent-menu-active-color;
+        background-color: $primary-color;
         color: #fff;
       }
       &:hover {
-        background-color: $parent-menu-active-color;
+        background-color: $primary-color;
+        color: #fff;
       }
       .menu-icon {
         margin-top: 5px;
@@ -194,6 +212,7 @@ $soft-border: 1px solid #e0e0e0;
       margin-bottom: 10px;
     }
     .child-menu {
+      text-decoration: none;
       display: flex;
       align-items: center;
       padding: 0 20px;

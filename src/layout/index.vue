@@ -1,12 +1,14 @@
 <template>
   <el-container class="app-wrapper">
     <el-aside width="" class="sidebar-container">
-      <sidebar ref="sidebarRef"></sidebar>
+      <sidebar ref="sidebarRef" :panelShow="isPanelCollapse"></sidebar>
     </el-aside>
     <el-container class="main-container">
       <el-header height="60px" class="main-header">
         <div class="nav-container">
-          
+          <Icon icon="mdi:menu" class="collapse-icon" @click="toggleSidePanel" v-if="nav.length > 1 && !isPanelCollapse" />
+          <Icon icon="mdi:menu-open" class="collapse-icon" @click="toggleSidePanel" v-if="nav.length > 1 && isPanelCollapse" />
+
           <div class="nav-item" v-for="(item, index) in nav" :key="index">
             <Icon :icon="`mdi:${item.icon}`" />
             <span>{{ item.title }}</span>
@@ -27,9 +29,9 @@
             <div class="visited-item" v-for="(item, index) in visitedViews" :key="index" :class="{ active: item.path === activePath }" @click="handleVisitedClick(item)" @contextmenu.prevent="showContextMenu($event, item)">
               <Icon :icon="`mdi:${item.meta.icon}`" class="visited-icon" />
               <el-tooltip :content="item.meta.title" placement="top" effect="dark">
-                <span class="visited-title">{{ item.meta.title.split('-')[1]??item.meta.title.split('-')[0] }}</span>
+                <span class="visited-title">{{ item.meta.title.split('-')[1] ?? item.meta.title.split('-')[0] }}</span>
               </el-tooltip>
-              
+
               <Icon icon="mdi:close" v-if="!item.meta.fixed" class="visited-close" @click.native.stop="handleVisitedClose(item)" />
             </div>
           </div>
@@ -38,10 +40,10 @@
       </el-header>
       <el-main class="app-main">
         <router-view v-slot="{ Component }">
-          <keep-alive>
-            <component :is="Component" v-if="cached" :key="refreshKey" />
+          <keep-alive v-if="!noCache">
+            <component :is="Component" :key="$route.fullPath" />
           </keep-alive>
-          <component :is="Component" v-if="!cached" :key="refreshKey" />
+          <component :is="Component" v-else :key="$route.fullPath" />
         </router-view>
       </el-main>
     </el-container>
@@ -80,14 +82,13 @@ import { ref } from 'vue'
 const store = useStore()
 const router = useRouter()
 const nav = computed(() => store.state.tagsView.nav)
-const cached = computed(() => {
-  if (router.currentRoute.value.meta && router.currentRoute.value.meta.cached) {
+const noCache = computed(() => {
+  if (router.currentRoute.value.meta && router.currentRoute.value.meta.noCache) {
     return true
   }
   return false
 })
 const visitedViews = computed(() => store.state.tagsView.visitedViews)
-const selectedView = ref({})
 const contextMenuVisible = ref(false)
 const contextMenuStyle = reactive({
   top: '0px',
@@ -100,7 +101,7 @@ const activePath = ref('')
 const visitedContainerRef = ref(null)
 const overflowWidth = ref(0)
 const sidebarRef = ref(null)
-const isPanelCollapse = ref(false)
+const isPanelCollapse = ref(true)
 
 watch(
   router.currentRoute,
@@ -115,7 +116,16 @@ watch(
   { deep: true }
 )
 
-// 删除分散的 onMounted 钩子，合并成一个
+const handleBeforeUnload = (e) => {
+  // 不再调用 preventDefault() 和设置 returnValue
+  // 直接保存状态即可
+
+  localStorage.setItem('lastPath', router.currentRoute.value.fullPath)
+}
+const generateRoutesAsync = async () => {
+  await store.dispatch('permission/generateRoutesAsync')
+}
+// 在 onMounted 中添加事件监听
 onMounted(() => {
   if (visitedContainerRef.value) {
     resizeObserver = new ResizeObserver(calculateOverflowWidth)
@@ -138,6 +148,26 @@ onMounted(() => {
     resizeObserver = new ResizeObserver(calculateOverflowWidth)
     resizeObserver.observe(visitedContainerRef.value)
   }
+
+  // 添加页面刷新事件监听
+  window.addEventListener('beforeunload', handleBeforeUnload)
+
+  // 检查 localStorage 中是否有上次的路径记录
+  const lastPath = localStorage.getItem('lastPath')
+  if (lastPath) {
+    // 可以根据需要执行一些恢复操作
+    generateRoutesAsync
+    // 使用完后除
+    localStorage.removeItem('lastPath')
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      // console.log('页面隐藏')
+    } else if (document.visibilityState === 'visible') {
+      // console.log('页面显示')
+    }
+  })
 })
 
 const handleVisitedClick = (item) => {
@@ -194,12 +224,23 @@ const closeContextMenu = () => {
 }
 
 const refreshPage = () => {
-  // Implement refresh logic
   if (currentContextMenuItem.value) {
     NProgress.start()
-    refreshKey.value += 1
-    nextTick(() => {
-      NProgress.done()
+    // 保存当前路由信息
+    const currentPath = currentContextMenuItem.value.path
+    const currentQuery = currentContextMenuItem.value.query || {}
+
+    // 先移除当前视图
+    store.dispatch('tagsView/delVisitedView', currentContextMenuItem.value).then(() => {
+      // 强制重新加载当前路由
+      router
+        .replace({
+          path: '/redirect' + currentPath,
+          query: currentQuery
+        })
+        .finally(() => {
+          NProgress.done()
+        })
     })
   }
   closeContextMenu()
@@ -267,6 +308,9 @@ onUnmounted(() => {
   if (resizeObserver) {
     resizeObserver.disconnect()
   }
+
+  // 移除页面刷新事件监听
+  window.removeEventListener('beforeunload', handleBeforeUnload)
 })
 
 // 监听路由变化
@@ -313,18 +357,21 @@ const scrollToRight = () => {
 
 const toggleSidePanel = () => {
   isPanelCollapse.value = !isPanelCollapse.value
-  // 调用sidebar组件的方法
-  sidebarRef.value?.togglePanel(isPanelCollapse.value)
+  // 添加空值检查
+  if (sidebarRef.value && typeof sidebarRef.value.togglePanel === 'function') {
+    sidebarRef.value.togglePanel(isPanelCollapse.value)
+  }
 }
 </script>
 
 <style lang="scss" scoped>
+@use '@/styles/variables.scss' as *;
 $header-bg: #ffffff;
 $main-bg: #f5f7fa;
 $footer-bg: #e4e7ed;
 $border-color: #e0e0e0;
 $text-color: #2c3e50;
-$active-color: #0966f2;
+$active-color: $primary-color;
 
 .app-wrapper {
   height: 100vh;
@@ -339,6 +386,7 @@ $active-color: #0966f2;
 
 .main-container {
   background-color: $main-bg;
+  padding: 0;
 }
 
 .main-header {
@@ -358,6 +406,7 @@ $active-color: #0966f2;
 
     .nav-item {
       display: flex;
+      color: $primary-color;
 
       .nav-separator {
         margin: 0 8px;
@@ -389,15 +438,16 @@ $active-color: #0966f2;
       cursor: pointer;
       border-radius: 4px;
       transition: all 0.3s;
-      
+      color: $primary-color;
+
       &:hover {
         background-color: #f5f7fa;
-        
+
         .iconify {
           color: var(--el-color-primary);
         }
       }
-      
+
       .iconify {
         font-size: 20px;
         color: #606266;
@@ -438,7 +488,7 @@ $active-color: #0966f2;
       .visited-item {
         font-size: 13px;
         font-weight: 500;
-        
+
         border: 1px solid $border-color;
         padding: 0 12px;
         border-radius: 4px;
@@ -498,7 +548,7 @@ $active-color: #0966f2;
 }
 
 .app-main {
-  padding: 20px;
+  padding: 0;
   overflow-y: auto;
 }
 
@@ -551,7 +601,7 @@ $active-color: #0966f2;
   cursor: pointer;
   display: flex;
   align-items: center;
-  color: #333;
+  color: $primary-color;
   transition: background-color 0.2s, color 0.2s;
 
   &:hover {
@@ -565,4 +615,3 @@ $active-color: #0966f2;
   }
 }
 </style>
-

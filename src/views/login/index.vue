@@ -122,8 +122,9 @@ const handleLogin = async () => {
   
   try {
     loginError.value = ''
-    const valid = await formRef.value.validate()
-    if (!valid) return
+    console.log('这里取消了验证表单')
+    // const valid = await formRef.value.validate()
+    // if (!valid) return
 
     loading.value = true
     await store.dispatch('user/loginAsync', { ...form.value })
@@ -137,7 +138,7 @@ const handleLogin = async () => {
   }
 }
 onMounted(() => {
-  console.log('onMounted')
+  // console.log('onMounted')
 })
 </script>
 
