@@ -78,7 +78,7 @@ export const allRoutes = [
 
 const router = createRouter({
   history: createWebHashHistory(),
-  routes: constantRoutes,
+  routes: allRoutes,
   scrollBehavior: () => ({ y: 0 }),
 })
 
