@@ -10,7 +10,7 @@
     </div>
     <div class="children-panel-container" v-if="!onlyOneChild && panelShow">
       <div class="children-title">{{ settings.title }}</div>
-      <router-link class="child-menu" v-for="(childMenu, index) in filteredChildren" :key="index" :to="childMenu.path" :class="{ active: router.currentRoute.value.name === childMenu.name }">
+      <router-link class="child-menu" v-for="(childMenu, index) in filteredChildren" :key="index" :to="childMenu.path" :class="{ active: router.currentRoute.value.name === childMenu.name }" @click.prevent="handleChildMenuClick(childMenu)">
         <Icon :icon="`mdi:${childMenu.meta.icon}`" class="menu-icon" />
         <span class="menu-title">{{ childMenu.meta.title }}</span>
       </router-link>
@@ -65,6 +65,9 @@ watch(
   }
 )
 
+const handleChildMenuClick = (childMenu) => {
+  router.push({ name: childMenu.name })
+}
 const watchRoute = (newVal) => {
   filteredRoutes.value = permissionRoutes.value.filter((route) => !route.hidden)
   filteredRoutes.value.forEach((r) => {
